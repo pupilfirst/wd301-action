@@ -1,0 +1,100 @@
+name: "WD301 Action"
+description: 'Handles checkout, testing, and grading for WD301 submissions'
+author: 'pupilfirst'
+
+inputs:
+  level_name:
+    description: "Name of level e.g., l1, l2, etc."
+  globs:
+    description: "This contains the list of files that will checked during repo verification"
+  commands:
+    description: "Shell commands to execute that copy the required files for running tests"
+  submissionUrl:
+    description: "It contains the url of live application"
+
+runs:
+  using: "composite"
+  steps:
+    # checkout student's repository and verify its structure
+    - name: Checkout student repo and verify its structure
+      id: check-student-repo
+      uses: pupilfirst/check-repo-action@v1
+      with:
+        repoPath: submission
+        globs: ${{inputs.globs}}
+
+    - name: Report check-repo failure to LMS
+      if: steps.check-student-repo.outputs.result != 'success'
+      uses: pupilfirst/report-action@v1
+      with:
+        status: "failure"
+        description: |
+          The check-repo action reported failure. The student should have
+          received automated feedback regarding the issue that was detected.
+
+    - name: Report to LMS tests in progress
+      if: steps.check-student-repo.outputs.result == 'success'
+      uses: pupilfirst/report-action@v1
+      with:
+        status: "in_progress"
+        description: "The automated tests are in progress"
+
+    - name: Check out the tests repo
+      if: steps.check-student-repo.outputs.result == 'success'
+      uses: actions/checkout@v2
+      id: checkout-tests-repo
+      with:
+        repository: pupilfirst/wd301-tests
+        path: tests
+
+    - name: Copy submission files to tests folder
+      if: steps.checkout-tests-repo.outcome == 'success'
+      id: copy-submission-files
+      run: ${{inputs.commands}}
+      shell: bash
+
+    - name: Run server using merged code
+      id: run-server
+      if: steps.copy-submission-files.outcome == 'success'
+      run: |
+        cd tests/${{inputs.level_name}}
+        npm install
+        npm run dev &
+        sleep 5
+      shell: bash
+
+    - name: Run tests
+      continue-on-error: true
+      if: steps.run-server.outcome == 'success'
+      run: |
+        cd tests/${{inputs.level_name}}
+        npm run test
+      shell: bash
+
+    - name: Use Node.js to generate report
+      if: steps.copy-submission-files.outcome == 'success'
+      id: generate-report
+      run: cd tests/${{inputs.level_name}} && node generateReportFromResults.js
+      shell: bash
+
+    - name: Report to LMS the outcome of tests.
+      if: steps.generate-report.outcome == 'success'
+      uses: pupilfirst/report-action@v1
+      id: report-test-results
+      with:
+        report_file_path: "tests/${{inputs.level_name}}/report.json"
+
+    - name: Grade the submission based on test results
+      uses: pupilfirst/grade-action@v1
+      if: steps.generate-report.outcome == 'success'
+      with:
+        report_file_path: "tests/${{inputs.level_name}}/report.json"
+
+    - name: Report error to LMS
+      if: steps.report-test-results.outcome == 'skipped'
+      uses: pupilfirst/report-action@v1
+      with:
+        status: "error"
+        description: |
+          Automated tests could not be run successfully. Please ask a member
+          of the Pupilfirst team to look into this submission's VTA logs.
