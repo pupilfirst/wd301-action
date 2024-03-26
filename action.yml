@@ -78,7 +78,7 @@ runs:
 
     - name: Run tests
       continue-on-error: true
-      if: ${{steps.run-server.outcome == 'success' && inputs.cypress == false}}
+      if: ${{steps.copy-submission-files.outcome == 'success' && inputs.cypress != true}}
       run: |
         cd tests/${{inputs.level_name}}
         npm run test
