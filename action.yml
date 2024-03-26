@@ -11,6 +11,11 @@ inputs:
     description: "Shell commands to execute that copy the required files for running tests"
   submissionUrl:
     description: "It contains the url of live application"
+  server:
+    description: "Contains boolean value determining whether Server should be started for the test"
+  cypress:
+    description: "Contains boolean value determining whether Cypress tests should be run."
+
 
 runs:
   using: "composite"
@@ -53,23 +58,37 @@ runs:
       run: ${{inputs.commands}}
       shell: bash
 
-    - name: Run server using merged code
-      id: run-server
-      if: steps.copy-submission-files.outcome == 'success'
+    - name: Install Dependencies
+      if: steps.check-student-repo.outputs.result == 'success'
       run: |
         cd tests/${{inputs.level_name}}
         npm install
+      shell: bash
+
+    - name: Run server using merged code
+      id: run-server
+      if: steps.copy-submission-files.outcome == 'success' && ${{inputs.server == true}}
+      run: |
+        cd tests/${{inputs.level_name}}
         npm run dev &
         sleep 5
       shell: bash
 
     - name: Run tests
       continue-on-error: true
-      if: steps.run-server.outcome == 'success'
+      if: steps.run-server.outcome == 'success' && ${{inputs.cypress != true}}
       run: |
         cd tests/${{inputs.level_name}}
         npm run test
       shell: bash
+
+    - name: Run cypress tests
+        continue-on-error: true
+        if: steps.copy-submission-files.outcome == 'success' && ${{inputs.cypress == true}}
+        timeout-minutes: 2
+        run: |
+          cd tests/${{inputs.level_name}}
+          npm run cy:run -- --env STUDENT_SUBMISSION_URL="${{needs.repo_check.outputs.submissionUrl}}"
 
     - name: Use Node.js to generate report
       if: steps.copy-submission-files.outcome == 'success'
