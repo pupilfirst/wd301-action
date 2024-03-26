@@ -83,12 +83,12 @@ runs:
       shell: bash
 
     - name: Run cypress tests
-        continue-on-error: true
-        if: steps.copy-submission-files.outcome == 'success' && ${{inputs.cypress == true}}
-        timeout-minutes: 2
-        run: |
-          cd tests/${{inputs.level_name}}
-          npm run cy:run -- --env STUDENT_SUBMISSION_URL="${{needs.repo_check.outputs.submissionUrl}}"
+      continue-on-error: true
+      if: steps.copy-submission-files.outcome == 'success' && ${{inputs.cypress == true}}
+      timeout-minutes: 2
+      run: |
+        cd tests/${{inputs.level_name}}
+        npm run cy:run -- --env STUDENT_SUBMISSION_URL="${{needs.repo_check.outputs.submissionUrl}}"
 
     - name: Use Node.js to generate report
       if: steps.copy-submission-files.outcome == 'success'
