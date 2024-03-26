@@ -13,8 +13,10 @@ inputs:
     description: "It contains the url of live application"
   server:
     description: "Contains boolean value determining whether Server should be started for the test"
+    default: false
   cypress:
     description: "Contains boolean value determining whether Cypress tests should be run."
+    default: false
 
 
 runs:
@@ -67,7 +69,7 @@ runs:
 
     - name: Run server using merged code
       id: run-server
-      if: steps.copy-submission-files.outcome == 'success' && ${{inputs.server == true}}
+      if: ${{steps.copy-submission-files.outcome == 'success' && inputs.server == true}}
       run: |
         cd tests/${{inputs.level_name}}
         npm run dev &
@@ -76,7 +78,7 @@ runs:
 
     - name: Run tests
       continue-on-error: true
-      if: steps.run-server.outcome == 'success' && ${{inputs.cypress != true}}
+      if: ${{steps.run-server.outcome == 'success' && inputs.cypress == false}}
       run: |
         cd tests/${{inputs.level_name}}
         npm run test
@@ -84,11 +86,11 @@ runs:
 
     - name: Run cypress tests
       continue-on-error: true
-      if: steps.copy-submission-files.outcome == 'success' && ${{inputs.cypress == true}}
-      timeout-minutes: 2
+      if: ${{steps.copy-submission-files.outcome == 'success' && inputs.cypress == true}}
       run: |
         cd tests/${{inputs.level_name}}
-        npm run cy:run -- --env STUDENT_SUBMISSION_URL="${{needs.repo_check.outputs.submissionUrl}}"
+        npm run cy:run -- --env STUDENT_SUBMISSION_URL="${{inputs.submissionUrl}}"
+      shell: bash
 
     - name: Use Node.js to generate report
       if: steps.copy-submission-files.outcome == 'success'
