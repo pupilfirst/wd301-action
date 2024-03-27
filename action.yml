@@ -14,8 +14,8 @@ inputs:
   server:
     description: "Contains boolean value determining whether Server should be started for the test"
     default: false
-  cypress:
-    description: "Contains boolean value determining whether Cypress tests should be run."
+  cypress_with_env:
+    description: "Contains boolean value indicating whether Cypress tests require an env value."
     default: false
 
 
@@ -79,7 +79,7 @@ runs:
 
     - name: Run tests
       continue-on-error: true
-      if: steps.copy-submission-files.outcome == 'success' && inputs.cypress == 'false'
+      if: steps.copy-submission-files.outcome == 'success' && inputs.cypress_with_env == 'false'
       run: |
         cd tests/${{inputs.level_name}}
         npm run test
@@ -87,7 +87,7 @@ runs:
 
     - name: Run cypress tests
       continue-on-error: true
-      if: steps.copy-submission-files.outcome == 'success' && inputs.cypress == 'true'
+      if: steps.copy-submission-files.outcome == 'success' && inputs.cypress_with_env == 'true'
       run: |
         cd tests/${{inputs.level_name}}
         npm run cy:run -- --env STUDENT_SUBMISSION_URL="${{inputs.submissionUrl}}"
