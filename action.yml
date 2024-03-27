@@ -68,8 +68,9 @@ runs:
       shell: bash
 
     - name: Run server using merged code
+      continue-on-error: true
       id: run-server
-      if: ${{steps.copy-submission-files.outcome == 'success' && inputs.server == true}}
+      if: steps.copy-submission-files.outcome == 'success' && inputs.server == 'true'
       run: |
         cd tests/${{inputs.level_name}}
         npm run dev &
@@ -78,7 +79,7 @@ runs:
 
     - name: Run tests
       continue-on-error: true
-      if: ${{steps.copy-submission-files.outcome == 'success' && inputs.cypress != true}}
+      if: steps.copy-submission-files.outcome == 'success' && inputs.cypress == 'false'
       run: |
         cd tests/${{inputs.level_name}}
         npm run test
@@ -86,7 +87,7 @@ runs:
 
     - name: Run cypress tests
       continue-on-error: true
-      if: ${{steps.copy-submission-files.outcome == 'success' && inputs.cypress == true}}
+      if: steps.copy-submission-files.outcome == 'success' && inputs.cypress == 'true'
       run: |
         cd tests/${{inputs.level_name}}
         npm run cy:run -- --env STUDENT_SUBMISSION_URL="${{inputs.submissionUrl}}"
