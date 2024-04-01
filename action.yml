@@ -17,6 +17,8 @@ inputs:
   cypress_with_env:
     description: "Contains boolean value indicating whether Cypress tests require an env value."
     default: false
+  report_file_path:
+    description: "It contains the path to report.json file, ex: submission/someFolder/report.json"
   api:
     description: "Boolean value to determine if API specific steps should be run"
     default: false
@@ -117,7 +119,7 @@ runs:
       shell: bash
 
     - name: Run the smarter-tasks app
-      if: steps.copy-tests-to-submission.outcome == 'success' && inputs.api == 'true'
+      if: steps.copy-submission-files.outcome == 'success' && inputs.api == 'true'
       id: run-app
       run: |
         cd submission/smarter-tasks
@@ -140,7 +142,12 @@ runs:
     - name: Use Node.js to generate report
       if: steps.copy-submission-files.outcome == 'success'
       id: generate-report
-      run: cd tests/${{inputs.level_name}} && node generateReportFromResults.js
+      run: |
+        if [[ "${{ inputs.level_name }}" =~ ^l([6-9])$ ]]; then
+          cd submission/smarter-tasks && node generateReportFromResults.js
+        else
+          cd tests/${{ inputs.level_name }} && node generateReportFromResults.js
+        fi
       shell: bash
 
     - name: Report to LMS the outcome of tests.
@@ -148,13 +155,13 @@ runs:
       uses: pupilfirst/report-action@v1
       id: report-test-results
       with:
-        report_file_path: "tests/${{inputs.level_name}}/report.json"
+        report_file_path: ${{inputs.report_file_path}}
 
     - name: Grade the submission based on test results
       uses: pupilfirst/grade-action@v1
       if: steps.generate-report.outcome == 'success'
       with:
-        report_file_path: "tests/${{inputs.level_name}}/report.json"
+        report_file_path: ${{inputs.report_file_path}}
 
     - name: Report error to LMS
       if: steps.report-test-results.outcome == 'skipped'
