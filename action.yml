@@ -6,7 +6,7 @@ inputs:
   level_name:
     description: "Name of level e.g., l1, l2, etc."
   globs:
-    description: "This contains the list of files that will checked during repo verification"
+    description: "This contains the list of files that will be checked during repo verification"
   commands:
     description: "Shell commands to execute that copy the required files for running tests"
   submissionUrl:
@@ -16,6 +16,9 @@ inputs:
     default: false
   cypress_with_env:
     description: "Contains boolean value indicating whether Cypress tests require an env value."
+    default: false
+  api:
+    description: "Boolean value to determine if API specific steps should be run"
     default: false
 
 
@@ -61,7 +64,7 @@ runs:
       shell: bash
 
     - name: Install Dependencies
-      if: steps.check-student-repo.outputs.result == 'success'
+      if: steps.check-student-repo.outputs.result == 'success' && inputs.api == 'false'
       run: |
         cd tests/${{inputs.level_name}}
         npm install
@@ -79,7 +82,7 @@ runs:
 
     - name: Run tests
       continue-on-error: true
-      if: steps.copy-submission-files.outcome == 'success' && inputs.cypress_with_env == 'false'
+      if: steps.copy-submission-files.outcome == 'success' && inputs.cypress_with_env == 'false' && inputs.api == 'false'
       run: |
         cd tests/${{inputs.level_name}}
         npm run test
@@ -91,6 +94,47 @@ runs:
       run: |
         cd tests/${{inputs.level_name}}
         npm run cy:run -- --env STUDENT_SUBMISSION_URL="${{inputs.submissionUrl}}"
+      shell: bash
+
+    - name: Check out the API repo
+      if: steps.check-student-repo.outputs.result == 'success' && inputs.api == 'true'
+      uses: actions/checkout@v3
+      id: checkout-api-repo
+      with:
+        repository: pupilfirst/wd301-api
+        path: api
+
+    - name: Run the API
+      if: steps.checkout-api-repo.outcome == 'success' && inputs.api == 'true'
+      id: run-api
+      run: |
+        cd api
+        npm install
+        npx sequelize-cli db:migrate
+        echo PORT=3001 > .env
+        npm run start &
+        sleep 5
+      shell: bash
+
+    - name: Run the smarter-tasks app
+      if: steps.copy-tests-to-submission.outcome == 'success' && inputs.api == 'true'
+      id: run-app
+      run: |
+        cd submission/smarter-tasks
+        rm -f .env
+        echo VITE_API_ENDPOINT="http://localhost:3001" > .env
+        npm install
+        npm run dev &
+        sleep 5
+      shell: bash
+
+    - name: Run cypress tests
+      continue-on-error: true
+      if: steps.run-app.outcome == 'success' && inputs.api == 'true'
+      run: |
+        cd submission/smarter-tasks
+        npm install cypress cypress-json-results
+        npx cypress run --env STUDENT_SUBMISSION_URL="http://localhost:5173/"
       shell: bash
 
     - name: Use Node.js to generate report
