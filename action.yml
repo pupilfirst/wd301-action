@@ -7,7 +7,7 @@ inputs:
     description: "Name of level e.g., l1, l2, etc."
   globs:
     description: "This contains the list of files that will be checked during repo verification"
-  commands:
+  copy_commands:
     description: "Shell commands to execute that copy the required files for running tests"
   submissionUrl:
     description: "It contains the url of live application"
