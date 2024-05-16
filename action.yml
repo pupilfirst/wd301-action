@@ -62,7 +62,7 @@ runs:
     - name: Copy submission files to tests folder
       if: steps.checkout-tests-repo.outcome == 'success'
       id: copy-submission-files
-      run: ${{inputs.commands}}
+      run: ${{inputs.copy_commands}}
       shell: bash
 
     - name: Install Dependencies
